@@ -4,25 +4,18 @@
 
 # Not yet added [delattr, hash, memoryview, set, all, dict, help, min, setattr, any, dir, hex, next, sliceascii, divmod, id, object, sortedbin, enumerate, input, oct, staticmethod, bool, eval, int, open, strbreakpoint, exec, isinstance, ord, sumbytearray, filter, issubclass, pow, super, bytes, float, iter, tuplecallable, format, len, property, type, chr, frozenset, list, range, vars, classmethod, getattr, locals, repr, zip, compile, globals, map, reversed, __import__, complex, hasattr, max]
 
-method_list = [b'abs', b'print', b'round']
+__all__ = ['_abs', '_print', '_round', '_return_dict', '_library_dict', '__all__']
+_return_dict = {b'_abs':b'ID', b'_print':b'void', b'_round':b'int'}
+_library_dict = {b'_abs':[b'<cmath>'], b'_print':[b'<iostream>'], b'_round':[b'<cmath>']}
 
-def abs(number):
-    return b'abs(' + bytes(str(number), "utf8") + ')'
-
-def abs_lib():
-    return [b'<cmath>']
+def _abs(number):
+    return b'std::abs(' + bytes(str(number), "utf8") + b')'
 
 # def all(pointer):
 #     return b'for (auto &part : pointer)'
 
-def round(number):
-    return b'round(' + bytes(str(number), "utf8") + ')'
+def _print(data):
+    return b'std::cout << ' + bytes(str(data), 'utf8') + b' << \"\\n\"'
 
-def round_lib():
-    return [b'<cmath>']
-
-def print(data):
-    return b'cout << ' + data + b' << \"\\n\"'
-
-def print_lib():
-    return [b'<iostream>']
+def _round(number):
+    return b'std::round(' + bytes(str(number), "utf8") + b')'
