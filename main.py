@@ -1,4 +1,7 @@
 import _def
+import time
+import subprocess
+import platform
 
 try:
     from input import *
@@ -11,9 +14,12 @@ fileIO = open("input.py", "rb")
 dataIn = fileIO.read()
 fileIO.close()
 
+p = time.time()
+
 functionCount = dataIn.count(b'def ')
 functionsString = dataIn[0:]
 linesOut = []
+libs = []
 for function in range(functionCount):
     first = functionsString.index(b'def')
     try:
@@ -23,12 +29,30 @@ for function in range(functionCount):
         last = functionsString.rindex(b'\n')
         chop = 1
     block = functionsString[first:last]
-    linesOut.extend(_def.generate(block, "input"))
+    output = _def.generate(block, "input")
+    linesOut.extend(output[0])
+    for c in range(0, len(output[1])):
+        for l in range(0, len(output[1][c])):
+            if output[1][c][l] not in libs:
+                libs.append(output[1][c][l])
     functionsString = functionsString[(chop + last):]
 
+print(time.time() - p)
+
 finalOutput = b''
+for libNum in range(0, len(libs)):
+    finalOutput += b'#include ' + libs[libNum] + b'\n'
+finalOutput += b'\n'
 for lineOutNum in range(0, len(linesOut)):
     finalOutput += linesOut[lineOutNum] + b'\n'
-fileIO = open("output.c", "wb")
-fileIO.write(finalOutput)
+fileIO = open("output.cpp", "wb")
+fileIO.write(finalOutput[:len(finalOutput) - 1])
 fileIO.close()
+
+OS = platform.system()
+if OS == 'Linux':
+    try:
+        output = subprocess.check_output(['g++', 'output.cpp', '-o', 'output'])
+        print("C++ code compiled successfully!")
+    except Exception as compileError:
+        print("One or more errors occured when compiling")

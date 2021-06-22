@@ -1,10 +1,12 @@
 methods = []
+method_dict = {}
 return_dict = {}
 library_dict = {}
 exec(b'from module_wrappers._builtins import *')
 for method in __all__:
     if (method != '__all__') & (method != '_return_dict') & (method != '_library_dict'):
         methods.append(bytes(method, "utf8")[1:])
+        method_dict.update({bytes(method, "utf8")[1:]:False})
 return_dict.update(_return_dict)
 del _return_dict
 library_dict.update(_library_dict)
@@ -12,6 +14,8 @@ del _library_dict
 
 def embedded_call_constructor(call):
     # print(b'Call: ' + call)
+    global libraries_used
+    import input
     call_count = 0
     index = 0
     # print(call)
@@ -59,6 +63,7 @@ def embedded_call_constructor(call):
     while True:
         mIndex = len(call[index:])
         mIndexLen = 0
+        method_name = b''
         found_in_pass = False
         for m in methods:
             if m in call[index:]:
@@ -66,13 +71,25 @@ def embedded_call_constructor(call):
                 if (foundPos < mIndex):
                     mIndex = foundPos
                     mIndexLen = len(m)
+                    method_name = m
                 found_in_pass = True
         if not found_in_pass:
             break
         else:
             # print(eval(b'_' + call[mIndex:mIndexLen + 1] + embedded_call_constructor(call[mIndex + mIndexLen + 1:len(call) - 1]) + b')'))
             call_count += 1
-            constructed = eval(b'_' + call[mIndex:mIndexLen + 1] + b'\"' + embedded_call_constructor(call[mIndex + mIndexLen + 1:call.rfind(b')')]) + b'\"' + b')') + call[call.rindex(b')') + 1:]
+            try:
+                if library_dict[b'_' + method_name] not in libraries_used:
+                    libraries_used.append(library_dict[b'_' + method_name])
+            except:
+                pass
+            if method_dict[method_name]:
+                if embedded_call_constructor(call[mIndex + mIndexLen + 1:call.rfind(b')')]) == b'':
+                    constructed = call
+                else:
+                    constructed = eval(b'input.' + call[mIndex:mIndexLen + 1] + b'\"' + embedded_call_constructor(call[mIndex + mIndexLen + 1:call.rfind(b')')]) + b'\"' + b')') + call[call.rindex(b')') + 1:]
+            else:
+                constructed = eval(b'_' + call[mIndex:mIndexLen + 1] + b'\"' + embedded_call_constructor(call[mIndex + mIndexLen + 1:call.rfind(b')')]) + b'\"' + b')') + call[call.rindex(b')') + 1:]
             return constructed
             index += mIndexLen + 1
     if call_count == 0:
@@ -91,16 +108,21 @@ def embedded_call_constructor(call):
 
 def generate(block,file):
     from builtins import type
+    global libraries_used
+    global methods
+    global method_dict
     exec("from "  + file + " import *")
     lines = block.split(b'\n')
     # print(block)
     libraries_used = []
     blockOut = []
     name = lines[0][4:lines[0].index(b'(')]
-
     pointers = {}
     pointerType = {}
-    if (lines[0].index(b'(') - lines[0].index(b')')) == -1:
+    if name == b'main':
+        blockOut.append(b'int ' + name + b'(){')
+        returnType = b'int'
+    elif (lines[0].index(b'(') - lines[0].index(b')')) == -1:
         returnType = bytes(str(type(eval(name + b'()'))), "utf8")
         returnType = returnType[8:returnType.rindex(b'\'')]
         if returnType == b'NoneType':
@@ -119,22 +141,32 @@ def generate(block,file):
                     nonTab += 1
                 cleanLine = line[nonTab:]
                 cleanLine = cleanLine.replace(b' ', b'')
-                if (cleanLine[cleanLine.find(b'=') + 1] != b'=') and (cleanLine[0:(cleanLine.find(b'='))] not in pointers):
-                    pointer = cleanLine[0:(cleanLine.find(b'='))]
-                    pointers[pointer] = 0
+                pointer = cleanLine[0:(cleanLine.find(b'='))]
+                if (cleanLine[cleanLine.find(b'=') + 1] != b'=') and (pointer not in pointers):
                     method_calls = []
                     # print(cleanLine[cleanLine.find(b'=') + 1:])
                     varType = bytes(str(type(eval(cleanLine[cleanLine.find(b'=') + 1:]))), "utf8")
                     varType = varType[8:varType.rindex(b'\'')]
+                    pointers[pointer] = 0
                     pointerType[pointer] = varType
                     cleanLine = cleanLine.replace(b'True', b'true')
                     cleanLine = cleanLine.replace(b'False', b'false')
                     generated = embedded_call_constructor(cleanLine[cleanLine.find(b'=') + 1:len(cleanLine)])
                     # print(generated)
-                    blockOut.append(indents + varType + b' ' + pointer + b' =' + generated + b';')
+                    blockOut.append(indents + varType + b' ' + pointer + b' = ' + generated + b';')
+                    continue
+                else:
+                    varType = bytes(str(type(eval(cleanLine[cleanLine.find(b'=') + 1:]))), "utf8")
+                    varType = varType[8:varType.rindex(b'\'')]
+                    if pointerType[pointer] != varType:
+                        print("Mismatched type, halting!")
+                        quit()
+                    generated = embedded_call_constructor(cleanLine[cleanLine.find(b'=') + 1:len(cleanLine)])
+                    blockOut.append(indents + pointer + b' = ' + generated + b';')
                     continue
         except Exception as e:
-            print(e)
+            pass
+            # print(e)
             # print(e)
         try:
             # Add case for not a pointer
@@ -154,6 +186,12 @@ def generate(block,file):
             pass
 
     methods.append(name)
+    method_dict.update({name:True})
     return_dict.update({name:returnType})
+    if name == b'main':
+        blockOut.append(b'\treturn 0;')
     blockOut.append(b'}\n')
     return [blockOut, libraries_used]
+
+def add_global_var(var):
+    pass
