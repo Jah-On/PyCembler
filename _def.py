@@ -11,6 +11,7 @@ return_dict.update(_return_dict)
 del _return_dict
 library_dict.update(_library_dict)
 del _library_dict
+global_vars = []
 
 def embedded_call_constructor(call):
     # print(b'Call: ' + call)
@@ -142,11 +143,12 @@ def generate(block,file):
                 cleanLine = line[nonTab:]
                 cleanLine = cleanLine.replace(b' ', b'')
                 pointer = cleanLine[0:(cleanLine.find(b'='))]
-                if (cleanLine[cleanLine.find(b'=') + 1] != b'=') and (pointer not in pointers):
+                if (cleanLine[cleanLine.find(b'=') + 1] != b'=') and (pointer not in list(pointers)):
                     method_calls = []
                     # print(cleanLine[cleanLine.find(b'=') + 1:])
                     varType = bytes(str(type(eval(cleanLine[cleanLine.find(b'=') + 1:]))), "utf8")
                     varType = varType[8:varType.rindex(b'\'')]
+                    # 0 is a local variable
                     pointers[pointer] = 0
                     pointerType[pointer] = varType
                     cleanLine = cleanLine.replace(b'True', b'true')
@@ -158,24 +160,36 @@ def generate(block,file):
                 else:
                     varType = bytes(str(type(eval(cleanLine[cleanLine.find(b'=') + 1:]))), "utf8")
                     varType = varType[8:varType.rindex(b'\'')]
-                    if pointerType[pointer] != varType:
-                        print("Mismatched type, halting!")
-                        quit()
+                    if pointers[pointer] == 1:
+                        global_vars.append(varType + b' ' + pointer + b';')
+                    else:
+                        if pointerType[pointer] != varType:
+                            print("Mismatched type, halting!")
+                            quit()
                     generated = embedded_call_constructor(cleanLine[cleanLine.find(b'=') + 1:len(cleanLine)])
                     blockOut.append(indents + pointer + b' = ' + generated + b';')
                     continue
-        except Exception as e:
+        except Exception as l:
+            print(l)
             pass
-            # print(e)
-            # print(e)
         try:
             # Add case for not a pointer
-            returnStringIndex = line.find(b'return ')
+            returnStringIndex = line.index(b'return ')
             returning = line[returnStringIndex + 7:]
             if returning in pointers:
                 blockOut.append(indents + b'return ' + list(pointers)[list(pointers).index(returning)] + b';')
-                continue
-        except Exception as LordOdin:
+            else:
+                blockOut.append(indents + b'return ' + embedded_call_constructor(returning) + b';')
+            continue
+        except Exception:
+            pass
+        try:
+            globalStringIndex = line.index(b'global ')
+            pointer = line.replace(b' ', b'')[6:]
+            pointers[pointer] = 1
+            print(pointers)
+            continue
+        except Exception:
             pass
         try:
             line = embedded_call_constructor(line.replace(b' ', b''))

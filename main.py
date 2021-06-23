@@ -43,6 +43,9 @@ finalOutput = b''
 for libNum in range(0, len(libs)):
     finalOutput += b'#include ' + libs[libNum] + b'\n'
 finalOutput += b'\n'
+for global_var in range(0, len(_def.global_vars)):
+    finalOutput += _def.global_vars[global_var] + b'\n'
+finalOutput += b'\n'
 for lineOutNum in range(0, len(linesOut)):
     finalOutput += linesOut[lineOutNum] + b'\n'
 fileIO = open("output.cpp", "wb")
