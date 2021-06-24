@@ -1,5 +1,5 @@
 # PyCembler
-A C++ compiler for Python code
+A Python to C++ Converter
 
 To use, place your Python file named "input.py" in the same directory as "main.py" and run "main.py"
 
